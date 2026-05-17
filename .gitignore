@@ -16,6 +16,7 @@ frontend/.env.local
 # Rust / ink!
 target/
 *.wasm
+contracts/saved_macros/target/ink/wasm_hex.txt
 
 # OS
 .DS_Store
