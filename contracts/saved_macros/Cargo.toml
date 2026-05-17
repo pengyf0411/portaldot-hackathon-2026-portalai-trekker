@@ -1,0 +1,31 @@
+[package]
+name = "saved_macros"
+version = "1.0.0"
+authors = ["PortalAI Team"]
+edition = "2021"
+
+[dependencies]
+ink_lang  = { version = "3.4", default-features = false }
+ink_primitives = { version = "3.4", default-features = false }
+ink_metadata   = { version = "3.4", default-features = false, features = ["derive"] }
+ink_env        = { version = "3.4", default-features = false }
+ink_storage    = { version = "3.4", default-features = false }
+ink_prelude    = { version = "3.4", default-features = false }
+scale          = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
+scale-info     = { version = "2", default-features = false, features = ["derive"] }
+
+[lib]
+path = "lib.rs"
+
+[features]
+default = ["std"]
+std = [
+    "ink_lang/std",
+    "ink_metadata/std",
+    "ink_env/std",
+    "ink_storage/std",
+    "ink_prelude/std",
+    "scale/std",
+    "scale-info/std",
+]
+ink-as-dependency = []
