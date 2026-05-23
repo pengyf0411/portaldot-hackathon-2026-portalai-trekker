@@ -115,11 +115,15 @@ def handle_transfer(params: dict) -> dict:
 
         # Estimate fee for display
         fee_info = None
-        try:
-            if from_address:
-                fee_info = estimate_transfer_fee(from_address, to, amount_pot)
-        except Exception as e:
-            logger.warning(f"Fee estimation failed (non-fatal): {e}")
+        if from_address:
+            fee_info = estimate_transfer_fee(from_address, to, amount_pot)
+
+        is_fixed = fee_info.get("is_fixed_estimate", False) if fee_info else False
+        fee_formatted = (
+            f"≈ {_format_pot(fee_info['estimated_fee_pot'])}（近似值）" if (fee_info and is_fixed)
+            else _format_pot(fee_info["estimated_fee_pot"]) if fee_info
+            else "未知"
+        )
 
         return {
             "intent": "transfer",
@@ -133,10 +137,10 @@ def handle_transfer(params: dict) -> dict:
             "to": to,
             "from": from_address,
             "estimated_fee_pot": fee_info["estimated_fee_pot"] if fee_info else None,
-            "estimated_fee_formatted": _format_pot(fee_info["estimated_fee_pot"]) if fee_info else "估算中...",
+            "estimated_fee_formatted": fee_formatted,
             "message": (
                 f"准备转账 {_format_pot(amount_pot)} 给 {to[:8]}...{to[-6:]}\n"
-                f"预计 gas 费：{_format_pot(fee_info['estimated_fee_pot']) if fee_info else '计算中'}"
+                f"预计 gas 费：{fee_formatted}"
             ),
         }
     except ValidationError as e:
@@ -159,6 +163,8 @@ def handle_estimate_fee(params: dict) -> dict:
         from_address = cleaned.get("from_address") or FEE_ESTIMATION_FALLBACK_ADDR
 
         fee_info = estimate_transfer_fee(from_address, to, amount_pot)
+        is_fixed = fee_info.get("is_fixed_estimate", False)
+        fee_label = f"≈ {_format_pot(fee_info['estimated_fee_pot'])}（近似值）" if is_fixed else _format_pot(fee_info["estimated_fee_pot"])
         return {
             "intent": "estimate_fee",
             "display_type": "fee_info",
@@ -166,8 +172,9 @@ def handle_estimate_fee(params: dict) -> dict:
             "amount_formatted": _format_pot(amount_pot),
             "estimated_fee_pot": fee_info["estimated_fee_pot"],
             "estimated_fee_planck": fee_info["estimated_fee_planck"],
-            "estimated_fee_formatted": _format_pot(fee_info["estimated_fee_pot"]),
-            "message": f"转账 {_format_pot(amount_pot)} 预计需要 gas 费约 {_format_pot(fee_info['estimated_fee_pot'])}",
+            "estimated_fee_formatted": fee_label,
+            "is_fixed_estimate": is_fixed,
+            "message": f"转账 {_format_pot(amount_pot)} 预计 gas 费约 {fee_label}",
         }
     except ValidationError as e:
         return {"intent": "estimate_fee", "display_type": "error", "message": e.message}

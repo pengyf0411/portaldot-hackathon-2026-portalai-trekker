@@ -214,14 +214,18 @@ function TxPreviewCard({
 
 // ─── Main ChatWindow Component ────────────────────────────────────────────────
 
+function getWelcomeText(address: string | null) {
+  return address
+    ? "你好！我是 PortalAI，你的 Portaldot 链上助手。你可以用自然语言查询余额、发起转账、查看验证节点等。"
+    : "你好！我是 PortalAI。请先连接钱包，再开始链上操作。你也可以直接输入问题来查询链上公开数据。";
+}
+
 export default function ChatWindow({ userAddress }: ChatWindowProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
       role: "assistant",
-      text: userAddress
-        ? "你好！我是 PortalAI，你的 Portaldot 链上助手。你可以用自然语言查询余额、发起转账、查看验证节点等。"
-        : "你好！我是 PortalAI。请先连接钱包，再开始链上操作。你也可以直接输入问题来查询链上公开数据。",
+      text: getWelcomeText(userAddress),
       displayType: "text",
       timestamp: new Date(),
     },
@@ -231,6 +235,17 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
   const [confirmData, setConfirmData] = useState<Record<string, unknown> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // 钱包连接/断开时，同步更新欢迎语（只更新那条固定 id 的消息）
+  useEffect(() => {
+    setMessages((prev) => {
+      const idx = prev.findIndex((m) => m.id === "welcome");
+      if (idx === -1) return prev;
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], text: getWelcomeText(userAddress) };
+      return updated;
+    });
+  }, [userAddress]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -368,8 +383,8 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Suggestions (only when no messages beyond welcome) */}
-      {messages.length <= 1 && (
+      {/* Suggestions — 输入框为空时始终显示，方便用户快速操作 */}
+      {!input.trim() && !loading && (
         <div className="px-4 pb-2 flex flex-wrap gap-2">
           {SUGGESTIONS.map((s) => (
             <button

@@ -26,6 +26,7 @@ SUPPORTED_INTENTS = [
     "estimate_fee",
     "query_validators",
     "query_tx_history",
+    "unknown_intent",
 ]
 
 UNKNOWN_INTENT_MESSAGE = (
@@ -159,6 +160,28 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "unknown_intent",
+            "description": (
+                "Use this when the user's request does NOT match any of the five supported operations. "
+                "Triggers include: greetings, questions about PortalAI itself, requests to stake/unstake, "
+                "NFT queries, governance votes, or any other off-topic input. "
+                "Do NOT use this as a fallback when the intent is unclear — try the best matching tool first."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_intent": {
+                        "type": "string",
+                        "description": "One-sentence description of what the user seemed to want.",
+                    }
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 SYSTEM_PROMPT = """You are PortalAI, an AI assistant for the Portaldot blockchain.
@@ -169,8 +192,9 @@ Do NOT respond in plain text — always use a tool call.
 
 Portaldot uses POT as its native token. SS58 addresses start with '5' and are 47-48 characters long.
 
-If the user's request does not match any supported operation, call query_balance with no arguments
-as a signal that the intent is unknown — the backend will handle the fallback response."""
+Supported operations: query_balance, transfer, estimate_fee, query_validators, query_tx_history.
+If the user's request clearly does not match any of these five operations, call unknown_intent.
+When in doubt, try the most relevant operation tool — only fall back to unknown_intent for clearly off-topic requests."""
 
 
 class ParsedIntent(BaseModel):
@@ -244,6 +268,11 @@ def parse_intent(user_message: str, user_address: Optional[str] = None) -> Parse
             params = json.loads(tool_call.function.arguments)
         except json.JSONDecodeError:
             params = {}
+
+        # Normalize unknown_intent tool call to the canonical "unknown" intent
+        if intent_name == "unknown_intent":
+            logger.info(f"LLM signaled unknown intent | user_intent={params.get('user_intent', '')}")
+            return ParsedIntent(intent="unknown", params=params, raw_message=user_message)
 
         # Fill in user address for intents that may need it
         if user_address:

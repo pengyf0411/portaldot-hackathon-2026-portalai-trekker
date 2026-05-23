@@ -116,35 +116,19 @@ def query_balance(address: str) -> dict:
 def estimate_transfer_fee(from_address: str, to_address: str, amount_pot: float) -> dict:
     """
     Estimate the POT gas fee for a balance transfer.
-    Falls back to a fixed estimate if payment.queryInfo is not supported (old chains).
+
+    Portaldot runs Substrate 2.x with Metadata V13, which does not support
+    the payment.queryInfo RPC used by newer chains. We skip that call entirely
+    and return a conservative fixed estimate (~0.001 POT) to avoid a guaranteed
+    round-trip failure on every request.
     """
-    substrate = _get_substrate()
-    try:
-        from substrateinterface import Keypair
-        dummy_keypair = Keypair(ss58_address=from_address)
-        amount_planck = pot_to_planck(amount_pot)
-        call = substrate.compose_call(
-            call_module="Balances",
-            call_function="transfer_keep_alive",
-            call_params={"dest": to_address, "value": amount_planck},
-        )
-        payment_info = substrate.get_payment_info(call=call, keypair=dummy_keypair)
-        fee_planck = payment_info["partialFee"]
-        return {
-            "estimated_fee_pot": planck_to_pot(fee_planck),
-            "estimated_fee_planck": fee_planck,
-        }
-    except Exception as e:
-        logger.warning(f"Fee estimation via payment.queryInfo failed ({e}), using fixed estimate")
-        # Portaldot Substrate 2.x may not support payment.queryInfo
-        # Use a conservative fixed estimate: ~0.001 POT
-        fixed_planck = pot_to_planck(0.001)
-        return {
-            "estimated_fee_pot": 0.001,
-            "estimated_fee_planck": fixed_planck,
-        }
-    finally:
-        substrate.close()
+    # Portaldot Substrate 2.x does not support payment.queryInfo — fixed estimate only.
+    fixed_planck = pot_to_planck(0.001)
+    return {
+        "estimated_fee_pot": 0.001,
+        "estimated_fee_planck": fixed_planck,
+        "is_fixed_estimate": True,
+    }
 
 
 def build_transfer_call_params(to_address: str, amount_pot: float) -> dict:
