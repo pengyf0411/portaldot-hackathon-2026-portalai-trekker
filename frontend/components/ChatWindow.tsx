@@ -30,11 +30,11 @@ interface ChatWindowProps {
 // ─── Suggestion chips ────────────────────────────────────────────────────────
 
 const SUGGESTIONS = [
-  "我的 POT 余额是多少？",
-  "转 1 POT 给 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
-  "转 0.5 POT 手续费是多少？",
-  "查看活跃验证节点",
-  "我最近的交易记录",
+  "What is my POT balance?",
+  "Send 1 POT to 5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+  "What is the gas fee to send 0.5 POT?",
+  "Show active validators",
+  "My recent transfer history",
 ];
 
 // ─── Response card renderers ─────────────────────────────────────────────────
@@ -44,11 +44,11 @@ function BalanceCard({ data }: { data: Record<string, unknown> }) {
     <div className="rounded-xl border border-slate-700 bg-slate-800/60 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700 bg-slate-800">
         <Wallet size={14} className="text-portal-400" />
-        <span className="text-xs font-medium text-slate-300">账户余额</span>
+        <span className="text-xs font-medium text-slate-300">Account balance</span>
       </div>
       <div className="p-4 space-y-3">
         <div>
-          <p className="text-xs text-slate-400 mb-1">可用余额</p>
+          <p className="text-xs text-slate-400 mb-1">Available</p>
           <p className="text-2xl font-bold text-white">
             {Number(data.free_pot).toLocaleString(undefined, { maximumFractionDigits: 6 })}
             <span className="text-sm font-normal text-slate-400 ml-1">POT</span>
@@ -56,7 +56,7 @@ function BalanceCard({ data }: { data: Record<string, unknown> }) {
         </div>
         {Number(data.reserved_pot) > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">质押锁定</span>
+            <span className="text-slate-400">Reserved</span>
             <span className="text-slate-300">{Number(data.reserved_pot).toLocaleString()} POT</span>
           </div>
         )}
@@ -75,15 +75,15 @@ function FeeCard({ data }: { data: Record<string, unknown> }) {
     <div className="rounded-xl border border-slate-700 bg-slate-800/60 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700 bg-slate-800">
         <Zap size={14} className="text-yellow-400" />
-        <span className="text-xs font-medium text-slate-300">Gas 费估算</span>
+        <span className="text-xs font-medium text-slate-300">Gas fee estimate</span>
       </div>
       <div className="p-4 space-y-2">
         <div className="flex justify-between">
-          <span className="text-sm text-slate-400">转账金额</span>
+          <span className="text-sm text-slate-400">Amount</span>
           <span className="text-sm text-slate-200">{Number(data.amount_pot)} POT</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-sm text-slate-400">预估 Gas 费</span>
+          <span className="text-sm text-slate-400">Estimated gas</span>
           <span className="text-sm font-semibold text-yellow-400">
             {String(data.estimated_fee_formatted)}
           </span>
@@ -100,15 +100,15 @@ function ValidatorsCard({ data }: { data: Record<string, unknown> }) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800">
         <div className="flex items-center gap-2">
           <Users size={14} className="text-green-400" />
-          <span className="text-xs font-medium text-slate-300">活跃验证节点</span>
+          <span className="text-xs font-medium text-slate-300">Active validators</span>
         </div>
-        <span className="text-xs text-slate-500">共 {Number(data.total_count)} 个</span>
+        <span className="text-xs text-slate-500">{Number(data.total_count)} total</span>
       </div>
       <div className="divide-y divide-slate-700/50 max-h-60 overflow-y-auto">
         {validators.map((v) => (
           <div key={v.address} className="flex items-center justify-between px-4 py-2.5">
             <p className="text-xs font-mono text-slate-300">{formatAddress(v.address)}</p>
-            <span className="text-xs text-slate-400">{v.commission_pct.toFixed(1)}% 佣金</span>
+            <span className="text-xs text-slate-400">{v.commission_pct.toFixed(1)}% commission</span>
           </div>
         ))}
       </div>
@@ -126,7 +126,7 @@ function TxHistoryCard({ data }: { data: Record<string, unknown> }) {
     return (
       <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-center">
         <Clock size={24} className="text-slate-600 mx-auto mb-2" />
-        <p className="text-sm text-slate-400">最近 {Number(data.scanned_blocks)} 块中无交易记录</p>
+        <p className="text-sm text-slate-400">No transactions in the last {Number(data.scanned_blocks)} blocks</p>
       </div>
     );
   }
@@ -135,8 +135,8 @@ function TxHistoryCard({ data }: { data: Record<string, unknown> }) {
     <div className="rounded-xl border border-slate-700 bg-slate-800/60 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700 bg-slate-800">
         <Clock size={14} className="text-blue-400" />
-        <span className="text-xs font-medium text-slate-300">最近交易记录</span>
-        <span className="ml-auto text-xs text-slate-500">扫描 {Number(data.scanned_blocks)} 块</span>
+        <span className="text-xs font-medium text-slate-300">Recent transactions</span>
+        <span className="ml-auto text-xs text-slate-500">Scanned {Number(data.scanned_blocks)} blocks</span>
       </div>
       <div className="divide-y divide-slate-700/50 max-h-64 overflow-y-auto">
         {txs.map((tx, i) => (
@@ -151,7 +151,7 @@ function TxHistoryCard({ data }: { data: Record<string, unknown> }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-slate-400">
-                {tx.direction === "in" ? `来自 ${formatAddress(tx.from)}` : `发往 ${formatAddress(tx.to)}`}
+                {tx.direction === "in" ? `From ${formatAddress(tx.from)}` : `To ${formatAddress(tx.to)}`}
               </p>
               <p className="text-xs text-slate-500 mt-0.5">Block #{tx.block}</p>
             </div>
@@ -181,22 +181,22 @@ function TxPreviewCard({
     <div className="rounded-xl border border-portal-600/50 bg-portal-900/20 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-portal-700/40">
         <ArrowUpRight size={14} className="text-portal-400" />
-        <span className="text-xs font-medium text-portal-300">待确认转账</span>
+        <span className="text-xs font-medium text-portal-300">Transfer pending confirmation</span>
       </div>
       <div className="p-4 space-y-3">
         <div className="flex justify-between items-center">
-          <span className="text-sm text-slate-400">金额</span>
+          <span className="text-sm text-slate-400">Amount</span>
           <span className="text-lg font-bold text-white">
             {Number(data.amount_pot).toLocaleString(undefined, { maximumFractionDigits: 6 })} POT
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-sm text-slate-400">接收方</span>
+          <span className="text-sm text-slate-400">Recipient</span>
           <span className="text-sm font-mono text-slate-300">{formatAddress(String(data.to))}</span>
         </div>
         {!!data.estimated_fee_formatted && (
           <div className="flex justify-between">
-            <span className="text-sm text-slate-400">预估 Gas</span>
+            <span className="text-sm text-slate-400">Estimated gas</span>
             <span className="text-sm text-yellow-400">{String(data.estimated_fee_formatted)}</span>
           </div>
         )}
@@ -205,7 +205,7 @@ function TxPreviewCard({
           className="w-full mt-1 py-2.5 rounded-xl bg-portal-600 hover:bg-portal-500 text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
         >
           <Zap size={14} />
-          点击确认并签名
+          Confirm and sign
         </button>
       </div>
     </div>
@@ -216,8 +216,8 @@ function TxPreviewCard({
 
 function getWelcomeText(address: string | null) {
   return address
-    ? "你好！我是 PortalAI，你的 Portaldot 链上助手。你可以用自然语言查询余额、发起转账、查看验证节点等。"
-    : "你好！我是 PortalAI。请先连接钱包，再开始链上操作。你也可以直接输入问题来查询链上公开数据。";
+    ? "Hi! I'm PortalAI, your Portaldot on-chain assistant. Ask in plain English to check balances, transfer POT, list validators, and more."
+    : "Hi! I'm PortalAI. Connect your wallet to sign transactions, or ask questions about public on-chain data without connecting.";
 }
 
 export default function ChatWindow({ userAddress }: ChatWindowProps) {
@@ -236,7 +236,7 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // 钱包连接/断开时，同步更新欢迎语（只更新那条固定 id 的消息）
+  // Refresh welcome message when wallet connects or disconnects
   useEffect(() => {
     setMessages((prev) => {
       const idx = prev.findIndex((m) => m.id === "welcome");
@@ -274,7 +274,7 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
         }),
       });
 
-      if (!res.ok) throw new Error(`服务器错误 ${res.status}`);
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
       const json = await res.json();
 
       const assistantMsg: ChatMessage = {
@@ -290,7 +290,7 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
       const errMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        text: `连接后端失败：${e instanceof Error ? e.message : String(e)}`,
+        text: `Failed to reach backend: ${e instanceof Error ? e.message : String(e)}`,
         displayType: "error",
         timestamp: new Date(),
       };
@@ -311,7 +311,7 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
     const successMsg: ChatMessage = {
       id: Date.now().toString(),
       role: "assistant",
-      text: `转账成功！交易 Hash：${result.txHash?.slice(0, 16)}...`,
+      text: `Transfer successful! Tx hash: ${result.txHash?.slice(0, 16)}...`,
       displayType: "text",
       timestamp: new Date(),
     };
@@ -364,7 +364,7 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
               )}
 
               <p className="text-xs text-slate-600 px-1">
-                {msg.timestamp.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
+                {msg.timestamp.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
               </p>
             </div>
           </div>
@@ -375,7 +375,7 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
           <div className="flex justify-start">
             <div className="bg-slate-800 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-2">
               <Loader2 size={14} className="animate-spin text-portal-400" />
-              <span className="text-sm text-slate-400">AI 分析中...</span>
+              <span className="text-sm text-slate-400">Analyzing...</span>
             </div>
           </div>
         )}
@@ -383,7 +383,7 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Suggestions — 输入框为空时始终显示，方便用户快速操作 */}
+      {/* Suggestions — shown when input is empty */}
       {!input.trim() && !loading && (
         <div className="px-4 pb-2 flex flex-wrap gap-2">
           {SUGGESTIONS.map((s) => (
@@ -406,7 +406,7 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入你的问题或操作…"
+            placeholder="Ask a question or describe an action…"
             rows={1}
             className="flex-1 bg-transparent text-sm text-slate-100 placeholder-slate-500 resize-none outline-none max-h-32"
             style={{ lineHeight: "1.5" }}
@@ -425,7 +425,7 @@ export default function ChatWindow({ userAddress }: ChatWindowProps) {
           </button>
         </div>
         <p className="text-xs text-slate-600 mt-1.5 text-center">
-          Enter 发送 · Shift+Enter 换行 · 私钥不离开浏览器
+          Enter to send · Shift+Enter for newline · Keys never leave your browser
         </p>
       </div>
 

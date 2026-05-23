@@ -33,7 +33,7 @@ export default function Home() {
         <div className="flex items-center gap-3">
           {/* GitHub link */}
           <a
-            href="https://github.com/your-org/portaldot-ai-copilot"
+            href="https://github.com/pengyf0411/portaldot-ai-copilot"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
@@ -55,14 +55,14 @@ export default function Home() {
         {/* Sidebar: capability list */}
         <aside className="hidden lg:flex flex-col w-56 flex-shrink-0 border-r border-slate-700/60 bg-slate-900/50 p-4 gap-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-            支持的操作
+            Supported actions
           </p>
           {[
-            { icon: "💰", label: "查询 POT 余额", example: "我的余额是多少？" },
-            { icon: "➡️", label: "POT 转账", example: "转 10 POT 给地址…" },
-            { icon: "⛽", label: "估算 Gas 费", example: "转 5 POT 要多少费用？" },
-            { icon: "🔗", label: "查看验证节点", example: "有哪些活跃验证人？" },
-            { icon: "📋", label: "交易记录", example: "我最近的转账" },
+            { icon: "💰", label: "Check POT balance", example: "What is my balance?" },
+            { icon: "➡️", label: "Transfer POT", example: "Send 10 POT to address…" },
+            { icon: "⛽", label: "Estimate gas fee", example: "Fee to send 5 POT?" },
+            { icon: "🔗", label: "List validators", example: "Show active validators" },
+            { icon: "📋", label: "Transaction history", example: "My recent transfers" },
           ].map((item) => (
             <div
               key={item.label}
@@ -80,10 +80,10 @@ export default function Home() {
             <div className="rounded-lg p-3 bg-portal-900/30 border border-portal-700/30">
               <div className="flex items-center gap-1.5 mb-1">
                 <BookmarkPlus size={12} className="text-portal-400" />
-                <span className="text-xs font-medium text-portal-300">链上宏</span>
+                <span className="text-xs font-medium text-portal-300">On-chain macros</span>
               </div>
               <p className="text-xs text-slate-400">
-                将常用操作保存为链上宏，快速复用。
+                Save frequent actions as on-chain macros for quick reuse.
               </p>
             </div>
           </div>

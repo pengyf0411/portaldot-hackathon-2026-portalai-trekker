@@ -12,8 +12,9 @@ POT precision: 14 decimals (1 POT = 10^14 planck).
 import os
 import logging
 from typing import Optional
+import requests as _http
 from substrateinterface import SubstrateInterface
-from substrateinterface import SubstrateNodeExtension
+from substrateinterface.utils.ss58 import ss58_encode
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,9 @@ logger = logging.getLogger(__name__)
 POT_DECIMALS = 14
 PLANCK_PER_POT = 10 ** POT_DECIMALS
 
-# Maximum block range for transaction history scan (SubstrateNodeExtension is slow)
-TX_HISTORY_BLOCK_RANGE = 1000
+# Maximum block range for transaction history scan.
+# Each block requires one RPC call; keep this small for local demo nodes.
+TX_HISTORY_BLOCK_RANGE = 200
 
 
 # Substrate 2.x (Portaldot) requires explicit type definitions
@@ -57,6 +59,32 @@ PORTALDOT_TYPES = {
     "DispatchResult": {
         "type": "enum",
         "value_list": {"Ok": "Null", "Err": "DispatchError"},
+    },
+    # Event-scanning types required by SubstrateNodeExtension
+    "Phase": {
+        "type": "enum",
+        "type_mapping": [
+            ["ApplyExtrinsic", "u32"],
+            ["Finalization", "Null"],
+            ["Initialization", "Null"],
+        ],
+    },
+    "EventRecord": {
+        "type": "struct",
+        "type_mapping": [
+            ["phase", "Phase"],
+            ["event", "Event"],
+            ["topics", "Vec<Hash>"],
+        ],
+    },
+    "EventIndex": "u32",
+    "RefCount": "u32",
+    "ExtrinsicMetadata": {
+        "type": "struct",
+        "type_mapping": [
+            ["version", "u8"],
+            ["signed_extensions", "Vec<Text>"],
+        ],
     },
 }
 
@@ -196,66 +224,160 @@ def query_validators(limit: int = 20) -> dict:
         substrate.close()
 
 
+def _read_compact(data: bytes, pos: int):
+    """
+    Decode a SCALE compact-encoded integer.
+
+    Big-integer mode (mode=3): the upper 6 bits encode (n - 4), where n is the
+    number of following bytes. So actual byte count = (upper_6_bits) + 4.
+    Example: compact(10^14) = [0x0b, 0x00, 0x40, 0x7a, 0x10, 0xf3, 0x5a]
+      0x0b >> 2 = 2, n = 2 + 4 = 6 bytes → value = 100_000_000_000_000
+    """
+    mode = data[pos] & 0x03
+    if mode == 0:
+        return data[pos] >> 2, pos + 1
+    elif mode == 1:
+        return (data[pos] | data[pos + 1] << 8) >> 2, pos + 2
+    elif mode == 2:
+        return (data[pos] | data[pos+1]<<8 | data[pos+2]<<16 | data[pos+3]<<24) >> 2, pos + 4
+    else:
+        n = (data[pos] >> 2) + 4   # big-int: byte_count = upper_6_bits + 4
+        return int.from_bytes(data[pos + 1:pos + 1 + n], "little"), pos + 1 + n
+
+
+def _decode_transfer_extrinsic(hex_str: str) -> Optional[dict]:
+    """
+    Manually decode a Substrate 2.x signed extrinsic and extract transfer info.
+
+    Portaldot uses Metadata V13. The newer substrate-interface GenericExtrinsic
+    decoder requires Metadata V14's portable_registry and cannot decode V13
+    extrinsics. This manual decoder handles the known Substrate 2.x format:
+
+        [compact_length][version][multiaddr_prefix][AccountId(32)][sig_prefix][sig(64)]
+        [era][nonce_compact][tip_compact][pallet_idx][call_idx][dest_prefix][dest(32)][amount_compact]
+
+    Balances pallet index on Portaldot dev chain = 6.
+    Call indices: 0=transfer, 3=transfer_keep_alive.
+    """
+    try:
+        raw = bytes.fromhex(hex_str.lstrip("0x"))
+        pos = 0
+
+        _, pos = _read_compact(raw, pos)        # compact length (skip)
+        ver = raw[pos]; pos += 1                # version byte
+        if not (ver & 0x80):
+            return None                         # unsigned extrinsic (e.g. timestamp)
+
+        pos += 1                                # MultiAddress prefix byte (0x00 = AccountId)
+        from_bytes = raw[pos:pos + 32]; pos += 32  # sender AccountId
+        pos += 1                                # MultiSignature type prefix
+        pos += 64                               # 64-byte signature
+
+        # Extra: era (1 or 2 bytes), nonce (compact), tip (compact)
+        pos += 2 if raw[pos] != 0x00 else 1
+        _, pos = _read_compact(raw, pos)
+        _, pos = _read_compact(raw, pos)
+
+        pallet_idx = raw[pos]; call_idx = raw[pos + 1]; pos += 2
+
+        # Only interested in Balances pallet (index 6) transfer calls (0 or 3)
+        if pallet_idx != 6 or call_idx not in (0, 3):
+            return None
+
+        pos += 1                                # dest MultiAddress prefix
+        dest_bytes = raw[pos:pos + 32]; pos += 32
+        amount_planck, _ = _read_compact(raw, pos)
+
+        return {
+            "from": ss58_encode(from_bytes, ss58_format=42),
+            "to":   ss58_encode(dest_bytes, ss58_format=42),
+            "amount_planck": amount_planck,
+        }
+    except Exception:
+        return None
+
+
+_HTTP_BATCH_SIZE = 30   # max requests per HTTP batch (node limit)
+
+
+def _http_batch_rpc(method: str, params_list: list) -> list:
+    """
+    Send batch JSON-RPC requests over HTTP, chunked to avoid node limits.
+    Substrate nodes expose HTTP JSON-RPC at port 9933 by default.
+    Returns results in the same order as params_list.
+    """
+    http_url = os.getenv("PORTALDOT_HTTP_URL", "http://127.0.0.1:9933")
+    results = []
+    for chunk_start in range(0, len(params_list), _HTTP_BATCH_SIZE):
+        chunk = params_list[chunk_start:chunk_start + _HTTP_BATCH_SIZE]
+        batch = [
+            {"id": i, "jsonrpc": "2.0", "method": method, "params": p}
+            for i, p in enumerate(chunk)
+        ]
+        resp = _http.post(http_url, json=batch, timeout=15)
+        resp.raise_for_status()
+        raw = resp.text.strip()
+        if not raw:
+            results.extend([None] * len(chunk))
+            continue
+        by_id = {r["id"]: r.get("result") for r in resp.json()}
+        results.extend(by_id.get(i) for i in range(len(chunk)))
+    return results
+
+
 def query_tx_history(address: str, limit: int = 20) -> dict:
     """
-    Query recent transfer events involving an address.
-    Scans only the last TX_HISTORY_BLOCK_RANGE blocks to avoid timeout.
+    Query recent transfer transactions involving an address by scanning extrinsics.
+
+    Uses HTTP batch JSON-RPC to fetch all block hashes and blocks in just
+    2 round trips (one batch for hashes, one for blocks), instead of the
+    previous approach of 2 serial WebSocket calls per block.
+
+    SubstrateNodeExtension.filter_events() was replaced because it cannot
+    decode Portaldot's Metadata V13 event types (Phase, DispatchInfo, etc.).
 
     Returns:
         {
-            "transactions": [
-                {
-                    "block": int,
-                    "from": str,
-                    "to": str,
-                    "amount_pot": float,
-                    "direction": "in" | "out",
-                }
-            ],
+            "transactions": [{"block", "from", "to", "amount_pot", "direction"}],
             "scanned_blocks": int,
         }
     """
     substrate = _get_substrate()
     try:
-        substrate.register_extension(SubstrateNodeExtension(max_block_range=TX_HISTORY_BLOCK_RANGE))
-
         block_end = substrate.get_block_number(substrate.get_chain_head())
-        block_start = max(0, block_end - TX_HISTORY_BLOCK_RANGE)
+        scan_range = min(TX_HISTORY_BLOCK_RANGE, block_end)
+        block_start = max(1, block_end - scan_range)
 
-        events = substrate.extensions.filter_events(
-            pallet_name="Balances",
-            event_name="Transfer",
-            block_start=block_start,
-            block_end=block_end,
-        )
+        block_numbers = list(range(block_end, block_start - 1, -1))
+
+        # Round-trip 1: fetch all block hashes in one batch
+        hashes = _http_batch_rpc("chain_getBlockHash", [[n] for n in block_numbers])
+
+        # Round-trip 2: fetch all blocks in one batch
+        blocks = _http_batch_rpc("chain_getBlock", [[h] for h in hashes if h])
 
         transactions = []
-        for event in events:
-            try:
-                attrs = event.value.get("attributes", event.value.get("event", {}).get("attributes", {}))
-                from_addr = attrs.get("from", "")
-                to_addr = attrs.get("to", "")
-                amount_planck = attrs.get("amount", 0)
-
-                if from_addr == address or to_addr == address:
-                    transactions.append({
-                        "block": event.value.get("block_number", 0),
-                        "from": from_addr,
-                        "to": to_addr,
-                        "amount_pot": planck_to_pot(amount_planck),
-                        "direction": "out" if from_addr == address else "in",
-                    })
-            except Exception as e:
-                logger.warning(f"Failed to parse event: {e}")
+        for block_num, block_data in zip(block_numbers, blocks):
+            if block_data is None:
                 continue
+            extrinsics = block_data.get("block", {}).get("extrinsics", [])
+            for ext_hex in extrinsics[1:]:   # skip [0] = timestamp
+                tx = _decode_transfer_extrinsic(ext_hex)
+                if tx is None:
+                    continue
+                if tx["from"] == address or tx["to"] == address:
+                    transactions.append({
+                        "block": block_num,
+                        "from": tx["from"],
+                        "to":   tx["to"],
+                        "amount_pot": planck_to_pot(tx["amount_planck"]),
+                        "direction": "out" if tx["from"] == address else "in",
+                    })
 
-        # Sort by block descending, take latest `limit`
         transactions.sort(key=lambda x: x["block"], reverse=True)
-        transactions = transactions[:limit]
-
         return {
-            "transactions": transactions,
-            "scanned_blocks": TX_HISTORY_BLOCK_RANGE,
+            "transactions": transactions[:limit],
+            "scanned_blocks": scan_range,
         }
     finally:
         substrate.close()

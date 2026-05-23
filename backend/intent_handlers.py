@@ -1,4 +1,4 @@
-"""
+﻿"""
 intent_handlers.py — Orchestrates chain queries and builds frontend-ready responses.
 
 For READ intents: queries the chain and returns formatted data.
@@ -56,7 +56,7 @@ def handle_query_balance(params: dict) -> dict:
             return {
                 "intent": "query_balance",
                 "display_type": "error",
-                "message": "请先连接钱包，或提供要查询的地址",
+                "message": "Connect your wallet or provide an address to query.",
             }
 
         data = query_balance(address)
@@ -70,13 +70,13 @@ def handle_query_balance(params: dict) -> dict:
             "free_formatted": _format_pot(data["free_pot"]),
             "reserved_formatted": _format_pot(data["reserved_pot"]),
             "total_formatted": _format_pot(data["total_pot"]),
-            "message": f"地址 {address[:8]}...{address[-6:]} 的可用余额为 {_format_pot(data['free_pot'])}",
+            "message": f"Available balance for {address[:8]}...{address[-6:]}: {_format_pot(data['free_pot'])}",
         }
     except ValidationError as e:
         return {"intent": "query_balance", "display_type": "error", "message": e.message}
     except Exception as e:
         logger.error(f"query_balance error: {e}")
-        return {"intent": "query_balance", "display_type": "error", "message": f"查询失败：{e}"}
+        return {"intent": "query_balance", "display_type": "error", "message": f"Balance query failed: {e}"}
 
 
 def handle_transfer(params: dict) -> dict:
@@ -104,8 +104,8 @@ def handle_transfer(params: dict) -> dict:
                         "intent": "transfer",
                         "display_type": "error",
                         "message": (
-                            f"余额不足：账户仅有 {_format_pot(balance_info['free_pot'])}，"
-                            f"无法转出 {_format_pot(amount_pot)}"
+                            f"Insufficient balance: you have {_format_pot(balance_info['free_pot'])}, "
+                            f"cannot send {_format_pot(amount_pot)}"
                         ),
                     }
             except Exception as e:
@@ -120,9 +120,9 @@ def handle_transfer(params: dict) -> dict:
 
         is_fixed = fee_info.get("is_fixed_estimate", False) if fee_info else False
         fee_formatted = (
-            f"≈ {_format_pot(fee_info['estimated_fee_pot'])}（近似值）" if (fee_info and is_fixed)
+            f"~ {_format_pot(fee_info['estimated_fee_pot'])} (estimate)" if (fee_info and is_fixed)
             else _format_pot(fee_info["estimated_fee_pot"]) if fee_info
-            else "未知"
+            else "Unknown"
         )
 
         return {
@@ -139,15 +139,15 @@ def handle_transfer(params: dict) -> dict:
             "estimated_fee_pot": fee_info["estimated_fee_pot"] if fee_info else None,
             "estimated_fee_formatted": fee_formatted,
             "message": (
-                f"准备转账 {_format_pot(amount_pot)} 给 {to[:8]}...{to[-6:]}\n"
-                f"预计 gas 费：{fee_formatted}"
+                f"Ready to send {_format_pot(amount_pot)} to {to[:8]}...{to[-6:]}\n"
+                f"Estimated gas: {fee_formatted}"
             ),
         }
     except ValidationError as e:
         return {"intent": "transfer", "display_type": "error", "message": e.message}
     except Exception as e:
         logger.error(f"transfer handler error: {e}")
-        return {"intent": "transfer", "display_type": "error", "message": f"处理失败：{e}"}
+        return {"intent": "transfer", "display_type": "error", "message": f"Transfer failed: {e}"}
 
 
 def handle_estimate_fee(params: dict) -> dict:
@@ -164,7 +164,7 @@ def handle_estimate_fee(params: dict) -> dict:
 
         fee_info = estimate_transfer_fee(from_address, to, amount_pot)
         is_fixed = fee_info.get("is_fixed_estimate", False)
-        fee_label = f"≈ {_format_pot(fee_info['estimated_fee_pot'])}（近似值）" if is_fixed else _format_pot(fee_info["estimated_fee_pot"])
+        fee_label = f"~ {_format_pot(fee_info['estimated_fee_pot'])} (estimate)" if is_fixed else _format_pot(fee_info["estimated_fee_pot"])
         return {
             "intent": "estimate_fee",
             "display_type": "fee_info",
@@ -174,13 +174,13 @@ def handle_estimate_fee(params: dict) -> dict:
             "estimated_fee_planck": fee_info["estimated_fee_planck"],
             "estimated_fee_formatted": fee_label,
             "is_fixed_estimate": is_fixed,
-            "message": f"转账 {_format_pot(amount_pot)} 预计 gas 费约 {fee_label}",
+            "message": f"Estimated gas to send {_format_pot(amount_pot)}: {fee_label}",
         }
     except ValidationError as e:
         return {"intent": "estimate_fee", "display_type": "error", "message": e.message}
     except Exception as e:
         logger.error(f"estimate_fee error: {e}")
-        return {"intent": "estimate_fee", "display_type": "error", "message": f"估算失败：{e}"}
+        return {"intent": "estimate_fee", "display_type": "error", "message": f"Fee estimation failed: {e}"}
 
 
 def handle_query_validators(params: dict) -> dict:
@@ -200,13 +200,13 @@ def handle_query_validators(params: dict) -> dict:
             "validators": data["validators"],
             "total_count": data["total_count"],
             "shown_count": len(data["validators"]),
-            "message": f"当前共有 {data['total_count']} 个活跃验证节点，显示前 {len(data['validators'])} 个",
+            "message": f"{data['total_count']} active validators; showing top {len(data['validators'])}",
         }
     except ValidationError as e:
         return {"intent": "query_validators", "display_type": "error", "message": e.message}
     except Exception as e:
         logger.error(f"query_validators error: {e}")
-        return {"intent": "query_validators", "display_type": "error", "message": f"查询失败：{e}"}
+        return {"intent": "query_validators", "display_type": "error", "message": f"Validator query failed: {e}"}
 
 
 def handle_query_tx_history(params: dict) -> dict:
@@ -225,7 +225,7 @@ def handle_query_tx_history(params: dict) -> dict:
             return {
                 "intent": "query_tx_history",
                 "display_type": "error",
-                "message": "请先连接钱包，才能查询交易记录",
+                "message": "Connect your wallet to view transaction history.",
             }
 
         data = query_tx_history(address, limit=limit)
@@ -242,16 +242,16 @@ def handle_query_tx_history(params: dict) -> dict:
             "count": len(txs),
             "scanned_blocks": data["scanned_blocks"],
             "message": (
-                f"在最近 {data['scanned_blocks']} 个区块中找到 {len(txs)} 笔相关交易"
+                f"Found {len(txs)} related transfer(s) in the last {data['scanned_blocks']} blocks"
                 if txs
-                else f"在最近 {data['scanned_blocks']} 个区块中未找到相关交易记录"
+                else f"No related transfers in the last {data['scanned_blocks']} blocks"
             ),
         }
     except ValidationError as e:
         return {"intent": "query_tx_history", "display_type": "error", "message": e.message}
     except Exception as e:
         logger.error(f"query_tx_history error: {e}")
-        return {"intent": "query_tx_history", "display_type": "error", "message": f"查询失败：{e}"}
+        return {"intent": "query_tx_history", "display_type": "error", "message": f"Transaction history failed: {e}"}
 
 
 # Dispatch table mapping intent name -> handler function

@@ -23,7 +23,7 @@ export async function connectWallet(): Promise<InjectedAccountWithMeta[]> {
   const extensions = await web3Enable(APP_NAME);
   if (extensions.length === 0) {
     throw new Error(
-      "未检测到钱包扩展。请安装 Portaldot Extension 或 Polkadot.js Extension 后刷新页面。"
+      "No wallet extension found. Install Portaldot Extension or Polkadot.js Extension, then refresh."
     );
   }
 
@@ -32,7 +32,7 @@ export async function connectWallet(): Promise<InjectedAccountWithMeta[]> {
 
   const accounts = await web3Accounts();
   if (accounts.length === 0) {
-    throw new Error("钱包中没有账户，请在扩展中创建或导入账户。");
+    throw new Error("No accounts in the wallet. Create or import an account in the extension.");
   }
 
   return accounts;

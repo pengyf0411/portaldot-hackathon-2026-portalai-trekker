@@ -31,7 +31,7 @@ export default function WalletButton({ account, onConnect, onDisconnect }: Walle
         setShowDropdown(true);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "连接失败");
+      setError(e instanceof Error ? e.message : "Connection failed");
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export default function WalletButton({ account, onConnect, onDisconnect }: Walle
           )}
         >
           <Wallet size={16} />
-          {loading ? "连接中..." : "连接钱包"}
+          {loading ? "Connecting..." : "Connect wallet"}
         </button>
 
         {error && (
@@ -70,7 +70,7 @@ export default function WalletButton({ account, onConnect, onDisconnect }: Walle
         {showDropdown && accounts.length > 1 && (
           <div className="absolute top-12 right-0 w-80 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl z-50 overflow-hidden">
             <p className="text-xs text-slate-400 px-3 py-2 border-b border-slate-700">
-              选择账户
+              Select account
             </p>
             {accounts.map((acc) => (
               <button
@@ -82,7 +82,7 @@ export default function WalletButton({ account, onConnect, onDisconnect }: Walle
                 className="w-full text-left px-3 py-2.5 hover:bg-slate-700 transition-colors"
               >
                 <p className="text-sm font-medium text-slate-100">
-                  {acc.meta.name || "未命名账户"}
+                  {acc.meta.name || "Unnamed account"}
                 </p>
                 <p className="text-xs text-slate-400 font-mono mt-0.5">
                   {formatAddress(acc.address)}
@@ -111,9 +111,9 @@ export default function WalletButton({ account, onConnect, onDisconnect }: Walle
       {showDropdown && (
         <div className="absolute top-12 right-0 w-64 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl z-50 overflow-hidden">
           <div className="px-3 py-2.5 border-b border-slate-700">
-            <p className="text-xs text-slate-400">已连接</p>
+            <p className="text-xs text-slate-400">Connected</p>
             <p className="text-sm font-medium text-slate-100 mt-0.5">
-              {account.meta.name || "账户"}
+              {account.meta.name || "Account"}
             </p>
             <p className="text-xs text-slate-400 font-mono mt-0.5">
               {formatAddress(account.address)}
@@ -124,14 +124,14 @@ export default function WalletButton({ account, onConnect, onDisconnect }: Walle
             className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-300 hover:bg-slate-700 transition-colors"
           >
             {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-            {copied ? "已复制" : "复制地址"}
+            {copied ? "Copied" : "Copy address"}
           </button>
           <button
             onClick={() => { onDisconnect(); setShowDropdown(false); }}
             className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-400 hover:bg-slate-700 transition-colors"
           >
             <LogOut size={14} />
-            断开连接
+            Disconnect
           </button>
         </div>
       )}

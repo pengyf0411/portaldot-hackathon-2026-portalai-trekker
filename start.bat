@@ -10,7 +10,7 @@ echo Waiting 10s for node to initialize...
 timeout /t 10 /nobreak >nul
 
 echo [2/3] Starting backend (FastAPI)...
-start "PortalAI Backend" cmd /k "cd /d C:\Users\Administrator\Desktop\Hackthon\portaldot-ai-copilot\backend && python -m uvicorn main:app --reload --port 8000"
+start "PortalAI Backend" cmd /k "cd /d C:\Users\Administrator\Desktop\Hackthon\backend && python -m uvicorn main:app --reload --port 8000"
 
 echo Waiting 6s for backend to start...
 timeout /t 6 /nobreak >nul
@@ -26,7 +26,7 @@ if %errorlevel% neq 0 (
 echo   Backend OK!
 
 echo [3/3] Starting frontend (Next.js)...
-start "PortalAI Frontend" cmd /k "cd /d C:\Users\Administrator\Desktop\Hackthon\portaldot-ai-copilot\frontend && npm run dev"
+start "PortalAI Frontend" cmd /k "cd /d C:\Users\Administrator\Desktop\Hackthon\frontend && npm run dev"
 
 echo.
 echo Waiting for frontend to compile (this may take 30-60 seconds)...

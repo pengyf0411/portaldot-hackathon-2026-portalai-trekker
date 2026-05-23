@@ -30,12 +30,12 @@ SUPPORTED_INTENTS = [
 ]
 
 UNKNOWN_INTENT_MESSAGE = (
-    "我目前只支持以下操作，请换一种方式描述：\n"
-    "• 查询余额（如：我有多少 POT？）\n"
-    "• 转账（如：转 10 POT 给地址 5Gxxx）\n"
-    "• 估算手续费（如：转 5 POT 需要多少 gas？）\n"
-    "• 查看验证节点（如：有哪些活跃验证人？）\n"
-    "• 查询交易记录（如：我最近的转账记录）"
+    "I only support the following operations. Please rephrase your request:\n"
+    "• Check balance (e.g. What is my POT balance?)\n"
+    "• Transfer (e.g. Send 10 POT to address 5Gxxx)\n"
+    "• Estimate gas fee (e.g. How much gas to send 5 POT?)\n"
+    "• List validators (e.g. Show active validators)\n"
+    "• Transaction history (e.g. My recent transfers)"
 )
 
 # Tool definitions for OpenAI Function Calling
@@ -191,6 +191,7 @@ You MUST call one of the provided tools for every user message.
 Do NOT respond in plain text — always use a tool call.
 
 Portaldot uses POT as its native token. SS58 addresses start with '5' and are 47-48 characters long.
+Users may write in English or Chinese; map their intent to the correct tool regardless of language.
 
 Supported operations: query_balance, transfer, estimate_fee, query_validators, query_tx_history.
 If the user's request clearly does not match any of these five operations, call unknown_intent.

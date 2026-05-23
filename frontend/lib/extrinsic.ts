@@ -20,7 +20,11 @@ let apiInstance: ApiPromise | null = null;
 async function getApi(): Promise<ApiPromise> {
   if (apiInstance && apiInstance.isConnected) return apiInstance;
   const provider = new WsProvider(WS_URL);
-  apiInstance = await ApiPromise.create({ provider });
+  apiInstance = await ApiPromise.create({
+    provider,
+    // Portaldot uses ss58_format=42 (generic Substrate)
+    ss58Format: 42,
+  });
   return apiInstance;
 }
 
@@ -54,24 +58,29 @@ export async function submitExtrinsic(
     const api = await getApi();
     const injector = await getInjectorForAddress(fromAddress);
 
-    onStatus?.("正在构造交易...");
+    onStatus?.("Building transaction...");
 
     // Dynamically access the pallet and method from call_module / call_function
     // e.g. api.tx["Balances"]["transfer_keep_alive"](dest, value)
     const palletName = callParams.call_module;
     const methodName = callParams.call_function;
 
-    const pallet = (api.tx as Record<string, Record<string, (...args: unknown[]) => unknown>>)[palletName];
-    if (!pallet) throw new Error(`Pallet '${palletName}' not found on chain`);
+    // @polkadot/api exposes pallets in camelCase: "Balances" → "balances"
+    const palletKey = palletName.charAt(0).toLowerCase() + palletName.slice(1);
+    // Methods are also camelCase: "transfer_keep_alive" → "transferKeepAlive"
+    const methodKey = methodName.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase());
 
-    const method = pallet[methodName];
-    if (!method) throw new Error(`Method '${methodName}' not found in pallet '${palletName}'`);
+    const pallet = (api.tx as Record<string, Record<string, (...args: unknown[]) => unknown>>)[palletKey];
+    if (!pallet) throw new Error(`Pallet '${palletName}' not found on chain (tried key: '${palletKey}')`);
+
+    const method = pallet[methodKey];
+    if (!method) throw new Error(`Method '${methodName}' not found in pallet '${palletName}' (tried key: '${methodKey}')`);
 
     // Build arguments array from call_params in the correct order
     const args = buildArgs(palletName, methodName, callParams.call_params);
     const tx = method(...args) as ReturnType<typeof api.tx.balances.transferKeepAlive>;
 
-    onStatus?.("请在钱包扩展中确认签名...");
+    onStatus?.("Confirm signing in your wallet extension...");
 
     return await new Promise<TxResult>((resolve) => {
       tx.signAndSend(
@@ -79,10 +88,10 @@ export async function submitExtrinsic(
         { signer: injector.signer as unknown as Signer },
         ({ status, events, dispatchError }) => {
           if (status.isInBlock) {
-            onStatus?.(`已打包进区块：${status.asInBlock.toString()}`);
+            onStatus?.(`Included in block: ${status.asInBlock.toString()}`);
 
             if (dispatchError) {
-              let errMsg = "交易执行失败";
+              let errMsg = "Transaction execution failed";
               if (dispatchError.isModule) {
                 try {
                   const decoded = api.registry.findMetaError(dispatchError.asModule);
@@ -104,9 +113,9 @@ export async function submitExtrinsic(
               });
             }
           } else if (status.isFinalized) {
-            onStatus?.(`已最终确认：${status.asFinalized.toString()}`);
+            onStatus?.(`Finalized: ${status.asFinalized.toString()}`);
           } else {
-            onStatus?.(`状态：${status.type}`);
+            onStatus?.(`Status: ${status.type}`);
           }
         }
       ).catch((err: Error) => {
