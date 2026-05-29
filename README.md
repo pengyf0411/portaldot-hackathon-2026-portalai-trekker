@@ -1,227 +1,247 @@
-# PortalAI — AI-Powered Portaldot Onchain Copilot
+# PortalAI Copilot (DEMO)
 
 > **Portaldot Online Mini Hackathon S1 · Track: AI-Powered Onchain Workflows**
 
-PortalAI is a conversational AI assistant that lets you interact with the Portaldot blockchain using plain language. No CLI, no raw hex, no guesswork — just type what you want to do.
+---
+
+## Project Overview
+
+### Problem Statement
+
+Interacting with Substrate-based chains like Portaldot typically requires understanding extrinsics, SS58 addresses, decimal precision, and wallet tooling. Non-technical users face a steep learning curve, and even developers lose time navigating explorers and CLI commands for routine tasks such as balance checks, fee estimates, and transfers.
+
+### Solution
+
+PortalAI Copilot is a conversational AI assistant that turns natural language into Portaldot onchain actions. Users connect a browser wallet, type plain English requests, and receive structured responses with one-click transaction confirmation for write operations. Private keys never leave the browser — the backend performs read-only chain queries while the frontend handles signing via `@polkadot/api`.
+
+### Blockchain Relevance
+
+- Built natively for **Portaldot** (Substrate 2.x, LAO NPoS consensus)
+- All transfers and queries use **POT** (14-decimal native token) as gas and value
+- Supports core **Balances** pallet operations: balance query, fee estimate, transfer, tx history
+- Includes an **ink! v5 SavedMacros** contract (source + pre-built artifacts) for on-chain macro storage — optional extension beyond the MVP demo
+- Demonstrates **AI-Powered Onchain Workflows**: NLU intent parsing → validated chain parameters → wallet-signed extrinsics
 
 ---
 
-## Demo
+## Technical Architecture
 
-> 📹 Demo video: [TBD — will be added before submission deadline]
-
-**Supported operations:**
-
-| What you type | What happens |
-|---|---|
-| "我的 POT 余额是多少？" | Queries your wallet balance from the chain |
-| "转 10 POT 给地址 5Gxxx…" | Shows tx preview → you click confirm → wallet signs → sent |
-| "转 5 POT 手续费是多少？" | Estimates gas fee via RPC |
-| "查看活跃验证节点" | Lists current validators with commission rates |
-| "我最近的交易记录" | Scans last 1,000 blocks for your transfers |
-
----
-
-## Architecture
+### Architecture Diagram
 
 ```
 User (Browser)
   │
-  ├─ Next.js Frontend
-  │    ├─ ChatWindow    — conversation UI
-  │    ├─ WalletButton  — connects Portaldot Extension
-  │    ├─ TxConfirmModal — shows tx details before signing
-  │    └─ lib/extrinsic.ts — @polkadot/api signs & submits
+  ├─ Next.js Frontend (localhost:3000)
+  │    ├─ ChatWindow       — conversation UI + suggestion chips
+  │    ├─ WalletButton     — Portaldot / Polkadot.js Extension
+  │    ├─ TxConfirmModal   — tx preview before signing
+  │    └─ lib/extrinsic.ts — @polkadot/api signs & submits extrinsics
   │
-  │  POST /chat (user message + wallet address)
+  │  POST /chat  { message, user_address }
   │
-  ├─ FastAPI Backend
-  │    ├─ llm_agent.py  — OpenAI GPT-4o-mini Function Calling
-  │    ├─ chain_client.py — substrate-interface READ queries
-  │    └─ intent_handlers.py — 5 handlers, POT 14-decimal aware
+  ├─ FastAPI Backend (localhost:8000)
+  │    ├─ llm_agent.py       — OpenAI GPT-4o-mini Function Calling
+  │    ├─ chain_client.py     — substrate-interface READ queries
+  │    ├─ intent_handlers.py  — 6 intent handlers (POT 14-decimal aware)
+  │    └─ validators.py       — SS58 address + amount validation
   │
-  └─ Portaldot Mainnet  wss://mainnet.portaldot.io
-       └─ ink! SavedMacros contract (on-chain macro storage)
+  └─ Portaldot Node
+       ws://127.0.0.1:9944  (local dev)
+       wss://mainnet.portaldot.io  (production)
 ```
 
-**Key design principle:** Private keys never leave the browser. The backend only performs READ operations. All WRITE operations (extrinsic signing + submission) happen in the frontend via `@polkadot/api` + the user's wallet extension.
+**Security model:** Backend = read-only. Frontend = write (sign + submit). OpenAI API key stays server-side.
 
----
+### Core Tech Stack
 
-## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Blockchain | Portaldot (Substrate, LAO NPoS) |
-| Smart Contract | ink! v5 (`saved_macros`) |
-| Chain SDK | `substrate-interface` (Python) |
-| AI / NLU | OpenAI GPT-4o-mini Function Calling |
-| Backend | Python 3.11 + FastAPI |
-| Frontend | Next.js 14 + TypeScript + Tailwind CSS |
-| Wallet | `@polkadot/extension-dapp` + `@polkadot/api` |
-| Token | POT (14 decimals, 1 POT = 10¹⁴ planck) |
+| Layer                   | Technology                                   |
+| ----------------------- | -------------------------------------------- |
+| Blockchain Platform     | Portaldot (Substrate 2.x, Metadata V13)      |
+| Smart Contract Language | ink! v5 (Rust) — SavedMacros contract        |
+| Chain SDK (Backend)     | `substrate-interface` (Python)               |
+| AI / NLU                | OpenAI GPT-4o-mini Function Calling          |
+| Backend                 | Python 3.11 + FastAPI + Uvicorn              |
+| Frontend Framework      | Next.js 14 + TypeScript + Tailwind CSS       |
+| Wallet Integration      | `@polkadot/extension-dapp` + `@polkadot/api` |
+| Native Token            | POT (14 decimals, 1 POT = 10¹⁴ planck)       |
 
----
 
-## Project Structure
+### Project Structure
 
 ```
 portaldot-ai-copilot/
-├── contracts/
-│   └── saved_macros/       # ink! smart contract
-│       ├── Cargo.toml
-│       └── lib.rs
-├── backend/
-│   ├── main.py             # FastAPI entrypoint
-│   ├── llm_agent.py        # GPT-4o-mini intent parser
-│   ├── chain_client.py     # Portaldot RPC wrapper
-│   ├── intent_handlers.py  # 5 intent handlers
-│   ├── validators.py       # SS58 + amount validation
-│   └── requirements.txt
-├── frontend/
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   └── page.tsx        # Main page
-│   ├── components/
-│   │   ├── ChatWindow.tsx  # Conversation UI + response cards
-│   │   ├── TxConfirmModal.tsx
-│   │   └── WalletButton.tsx
-│   ├── lib/
-│   │   ├── polkadot.ts     # Wallet connection helpers
-│   │   └── extrinsic.ts    # Extrinsic assembly + submission
-│   └── package.json
+├── contracts/saved_macros/   # ink! smart contract source + build artifacts
+├── backend/                  # FastAPI server
+├── frontend/                 # Next.js app
+├── start.bat                 # One-click local startup script (Windows)
+├── LICENSE                   # MIT
 └── README.md
 ```
 
 ---
 
-## Local Development
+## Smart Contracts
 
-### Prerequisites
+### Directory
 
-- Python 3.11+
-- Node.js 18+
-- Rust + `cargo-contract` (for ink! contract builds)
-- [Portaldot Extension](https://chromewebstore.google.com/detail/portaldot-extension/cpdecangbhmfijmlmjglfcocfpaojceo) or Polkadot.js Extension
-- OpenAI API key
+`contracts/saved_macros/`
 
-### 1. Run local Portaldot testnet node (recommended during dev)
+### Key Contracts
 
-Download the testnet binary from [Chain Info](https://portaldot-dev.readthedocs.io/en/latest/chain-info.html) and run:
+**SavedMacros** — stores user-defined command macros on-chain (max 10 per account).
+
+
+| Function                           | Description                                   |
+| ---------------------------------- | --------------------------------------------- |
+| `new()`                            | Constructor — initializes empty macro storage |
+| `save_macro(name, intent, params)` | Save a named macro with intent + JSON params  |
+| `delete_macro(name)`               | Remove a macro by name                        |
+| `get_macros()`                     | Return all macros for the caller              |
+
+
+### Deployment
+
+Pre-built artifacts: `contracts/saved_macros/target/ink/saved_macros.contract`
 
 ```bash
-# Linux/macOS
-./portaldot_dev --dev --alice
-```
-
-### 2. Build the ink! contract
-
-> **Note**: Portaldot runs on Substrate 2.x (Metadata V13). Use Rust 1.85.0 and cargo-contract 5.0.3 for compilation. Deploy via the Portaldot Web Explorer (see below).
-
-```bash
-# Install toolchain
-rustup install 1.85.0
-rustup component add rust-src --toolchain 1.85.0
-rustup target add wasm32-unknown-unknown --toolchain 1.85.0
-cargo install cargo-contract
-
+# Build (requires Rust 1.85.0 + cargo-contract 5.0.3)
 cd contracts/saved_macros
 rustup override set 1.85.0
 cargo +1.85.0 contract build --release
 ```
 
-Pre-built artifacts are included at `contracts/saved_macros/target/ink/`.
+Deploy via [Portaldot Web Explorer](https://www.portaldot.io/) → Developer → Contracts → Upload & Deploy.
 
-### 3. Deploy via Portaldot Web Explorer
+> **Note:** The MVP demo runs fully on native Balances pallet operations without requiring contract deployment. Contract source and artifacts are included for hackathon completeness.
 
-1. Open [https://www.portaldot.io/](https://www.portaldot.io/) → select **Local Node** (or Mainnet)
-2. Go to **Developer → Contracts → Upload & Deploy**
-3. Upload `saved_macros.wasm` and `saved_macros.json`
-4. Set constructor to `new`, click **Deploy**
-5. Copy the deployed contract address into `backend/.env` and `frontend/.env.local`
+---
 
-### 3. Start the backend
+## Installation & Setup
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- Rust + `cargo-contract` (only if rebuilding the ink! contract)
+- [Portaldot Extension](https://chromewebstore.google.com/detail/portaldot-extension/cpdecangbhmfijmlmjglfcocfpaojceo) or Polkadot.js Extension
+- OpenAI API key
+
+### Steps
+
+**1. Clone**
+
+```bash
+git clone https://github.com/pengyf0411/portaldot-ai-copilot.git
+cd portaldot-ai-copilot
+```
+
+**2. Run local Portaldot node**
+
+Download the dev binary from [Chain Info](https://portaldot-dev.readthedocs.io/en/latest/chain-info.html):
+
+```bash
+./portaldot_dev --dev --alice --force-authoring
+```
+
+**3. Install & start backend**
 
 ```bash
 cd backend
 pip install -r requirements.txt
 cp .env.example .env
-# Fill in OPENAI_API_KEY and PORTALDOT_WS_URL in .env
+# Set OPENAI_API_KEY and PORTALDOT_WS_URL=ws://127.0.0.1:9944
 uvicorn main:app --reload --port 8000
 ```
 
-### 4. Start the frontend
+**4. Install & start frontend**
 
 ```bash
 cd frontend
 npm install
 cp .env.local.example .env.local
-# Fill in NEXT_PUBLIC_API_URL and NEXT_PUBLIC_WS_URL
+# Set NEXT_PUBLIC_API_URL=http://localhost:8000
+# Set NEXT_PUBLIC_WS_URL=ws://127.0.0.1:9944
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+**5. Open** [http://localhost:3000](http://localhost:3000), click **Connect Wallet**, and start chatting.
+
+### Supported Operations
+
+
+| User Input (example)           | Action                                                |
+| ------------------------------ | ----------------------------------------------------- |
+| "What is my POT balance?"      | Queries wallet balance from chain                     |
+| "Transfer 10 POT to 5Gxxx…"    | Shows tx preview → confirm → wallet signs → submitted |
+| "How much fee to send 10 POT?" | Estimates transfer gas fee                            |
+| "Show active validators"       | Lists current validators with commission rates        |
+| "Show my recent transfers"     | Scans recent blocks for transfer history              |
+
 
 ---
 
-## Mainnet Deployment
+## Demo
 
-### Smart Contract
+### Demo Video
 
-Deployed on Portaldot Mainnet (`wss://mainnet.portaldot.io`):
+> 📹 **Demo Video:** [PortalAI — AI Copilot for Portaldot | Hackathon S1 Demo - YouTube](https://www.youtube.com/watch?v=64_78qLyd1c)
 
-```
-Contract Address: [TO BE FILLED AFTER MAINNET DEPLOY]
-```
+### Demo Flow (shown in video)
 
-### Backend
+1. Connect wallet via Portaldot / Polkadot.js Extension
+2. Query account POT balance
+3. Estimate fee for a 10 POT transfer
+4. Transfer 10 POT to a target SS58 address (wallet signing)
+5. Verify updated balance
+6. Query recent transfer history
 
-Set in `backend/.env`:
-```
-PORTALDOT_WS_URL=wss://mainnet.portaldot.io
-CONTRACT_ADDRESS=<deployed address>
-```
+### Live Demo (optional)
 
-### Frontend
+Run locally following the Installation steps above.
 
-Set in `frontend/.env.local`:
-```
-NEXT_PUBLIC_WS_URL=wss://mainnet.portaldot.io
-NEXT_PUBLIC_CONTRACT_ADDRESS=<deployed address>
-```
+### Test Accounts
+
+Use the Portaldot dev node **Alice** account (pre-funded) or import your own account via the browser extension. For local dev, fund your account by transferring POT from Alice via [Portaldot.js Apps](https://www.portaldot.io/?rpc=ws%3A%2F%2F127.0.0.1%3A9944).
 
 ---
 
-## ink! Contract — SavedMacros
+## Roadmap
 
-Users can save frequently-used AI commands as on-chain macros (e.g., "Send 5 POT to Alice every week"). Macros are stored per account, max 10 per user.
+### Completed (Hackathon MVP)
 
-```rust
-// Save a macro
-save_macro(name: String, intent: String, params: String) -> Result<()>
+- Natural language intent parsing (6 intents + unknown-intent fallback)
+- Balance query, fee estimate, transfer preview + signing, tx history, validator list
+- Wallet connection with dynamic welcome message refresh
+- Transaction confirmation modal with status tracking
+- Custom SCALE decoder for tx history on Portaldot Metadata V13
+- Full English UI for reviewer accessibility
+- End-to-end demo on local Portaldot dev node
 
-// Delete a macro by name
-delete_macro(name: String) -> Result<()>
+### Next Phase
 
-// Read all macros for the caller
-get_macros() -> Vec<Macro>
-```
-
-All contract interactions consume POT as gas, fulfilling the hackathon's native deployment requirement.
+- Deploy SavedMacros ink! contract to Portaldot mainnet
+- On-chain macro save / execute workflow
+- Mainnet deployment of frontend + backend
+- Additional intents (staking, governance, contract calls)
+- Multi-turn conversation context
 
 ---
 
-## Judging Criteria Alignment
+## Team
 
-| Criterion | How PortalAI satisfies it |
-|---|---|
-| **Portaldot Native Deployment** | ink! contract deployed on mainnet; all txs use POT as gas |
-| **Demo Completion** | Full end-to-end MVP: NL input → AI parse → chain op → result |
-| **Application Value** | Lowers UX barrier for non-technical Portaldot users |
-| **Presentation Quality** | Clean chat UI, rich response cards, one-click tx confirmation |
+
+| Name    | Role                                                      | Contact                                              |
+| ------- | --------------------------------------------------------- | ---------------------------------------------------- |
+| Trekker | Solo Developer — Full Stack (AI, Backend, Frontend, ink!) | GitHub: [@pengyf0411](https://github.com/pengyf0411) |
+
+
+**Team Name:** Trekker
+
+**Hackathon Track:** AI-Powered Onchain Workflows
 
 ---
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE).
